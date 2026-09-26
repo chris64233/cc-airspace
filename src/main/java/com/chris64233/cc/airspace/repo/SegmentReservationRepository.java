@@ -24,4 +24,21 @@ public interface SegmentReservationRepository extends JpaRepository<SegmentReser
     long countActiveOverlaps(@Param("segmentId") Long segmentId,
                              @Param("startTime") Instant startTime,
                              @Param("endTime") Instant endTime);
+
+    /**
+     * 与 {@link #countActiveOverlaps} 相同，但排除指定许可自身的占用。
+     * 改道容量判定时使用：被保留的自有航段不应占用新容量。
+     */
+    @Query("""
+            select count(r) from SegmentReservation r
+            where r.segment.id = :segmentId
+              and r.clearance.status = com.chris64233.cc.airspace.domain.ClearanceStatus.ACTIVE
+              and r.clearance.id <> :excludeClearanceId
+              and r.clearance.startTime < :endTime
+              and r.clearance.endTime > :startTime
+            """)
+    long countActiveOverlapsExcluding(@Param("segmentId") Long segmentId,
+                                      @Param("startTime") Instant startTime,
+                                      @Param("endTime") Instant endTime,
+                                      @Param("excludeClearanceId") Long excludeClearanceId);
 }

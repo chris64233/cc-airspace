@@ -49,6 +49,23 @@ public class FlightClearance {
     @Column(name = "cancelled_at")
     private Instant cancelledAt;
 
+    /**
+     * 航线业务版本：初始为 1，每次改道 +1。改道申请必须引用该版本，
+     * 版本不一致说明许可已被并发修改，拒绝改道且不影响原占用。
+     */
+    @Column(name = "version", nullable = false)
+    private int version;
+
+    /**
+     * 已飞过的航段数量（从 0 号航段起）。改道起点不得小于该值，
+     * 已飞过的航段不可改写。
+     */
+    @Column(name = "flown_leg_count", nullable = false)
+    private int flownLegCount;
+
+    @Column(name = "started_at")
+    private Instant startedAt;
+
     @OneToMany(mappedBy = "clearance", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("segmentOrder asc")
     private List<SegmentReservation> reservations = new ArrayList<>();
@@ -64,6 +81,8 @@ public class FlightClearance {
         this.endTime = endTime;
         this.status = status;
         this.createdAt = createdAt;
+        this.version = 1;
+        this.flownLegCount = 0;
     }
 
     public void addReservation(int segmentOrder, AirSegment segment, int altitude) {
@@ -101,6 +120,34 @@ public class FlightClearance {
 
     public Instant getCancelledAt() {
         return cancelledAt;
+    }
+
+    public int getVersion() {
+        return version;
+    }
+
+    public int getFlownLegCount() {
+        return flownLegCount;
+    }
+
+    public Instant getStartedAt() {
+        return startedAt;
+    }
+
+    public void bumpVersion() {
+        this.version++;
+    }
+
+    public void markStarted(Instant startedAt) {
+        this.startedAt = startedAt;
+    }
+
+    public void advanceFlownLegCount(int flownLegCount) {
+        this.flownLegCount = flownLegCount;
+    }
+
+    public void markCompleted() {
+        this.status = ClearanceStatus.COMPLETED;
     }
 
     public void markCancelled(Instant cancelledAt) {

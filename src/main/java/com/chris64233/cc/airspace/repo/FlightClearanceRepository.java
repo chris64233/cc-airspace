@@ -3,7 +3,10 @@ package com.chris64233.cc.airspace.repo;
 import java.time.Instant;
 import java.util.Optional;
 
+import jakarta.persistence.LockModeType;
+
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -23,6 +26,16 @@ public interface FlightClearanceRepository extends JpaRepository<FlightClearance
             where c.externalNo = :externalNo
             """)
     Optional<FlightClearance> findDetailByExternalNo(@Param("externalNo") String externalNo);
+
+    Optional<FlightClearance> findByExternalNo(String externalNo);
+
+    /**
+     * 对许可行加写锁：改道、飞行开始、位置上报等变更操作先取该锁，
+     * 使同一许可上的并发变更串行化。
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from FlightClearance c where c.externalNo = :externalNo")
+    Optional<FlightClearance> findByExternalNoForUpdate(@Param("externalNo") String externalNo);
 
     /**
      * 原子条件更新：只有当前状态仍为 ACTIVE 时才置为 CANCELLED。

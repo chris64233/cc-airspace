@@ -9,7 +9,10 @@ public record ClearanceView(
         Instant startTime,
         Instant endTime,
         String status,
+        int version,
+        int flownLegCount,
         Instant createdAt,
+        Instant startedAt,
         Instant cancelledAt,
         List<LegOccupancyView> legs) {
 }
