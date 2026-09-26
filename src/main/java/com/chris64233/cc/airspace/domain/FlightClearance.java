@@ -43,14 +43,34 @@ public class FlightClearance {
     @Column(nullable = false, length = 16)
     private ClearanceStatus status;
 
+    /**
+     * 航线版本号：初始为 1，每次改道成功 +1。改道请求必须引用该版本，
+     * 版本不一致说明许可已被并发修改，请求必须放弃。
+     */
+    @Column(nullable = false)
+    private int version;
+
+    /**
+     * 已飞过的航段数量（航线前 flownLegs 段不可改写）。
+     * 改道只能从该位置之后开始衔接。
+     */
+    @Column(name = "flown_legs", nullable = false)
+    private int flownLegs;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
+
+    @Column(name = "started_at")
+    private Instant startedAt;
+
+    @Column(name = "completed_at")
+    private Instant completedAt;
 
     @Column(name = "cancelled_at")
     private Instant cancelledAt;
 
     @OneToMany(mappedBy = "clearance", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @OrderBy("segmentOrder asc")
+    @OrderBy("routeVersion asc, segmentOrder asc")
     private List<SegmentReservation> reservations = new ArrayList<>();
 
     protected FlightClearance() {
@@ -63,11 +83,15 @@ public class FlightClearance {
         this.startTime = startTime;
         this.endTime = endTime;
         this.status = status;
+        this.version = 1;
+        this.flownLegs = 0;
         this.createdAt = createdAt;
     }
 
-    public void addReservation(int segmentOrder, AirSegment segment, int altitude) {
-        SegmentReservation reservation = new SegmentReservation(this, segmentOrder, segment, altitude);
+    public void addReservation(int segmentOrder, AirSegment segment, int altitude, int routeVersion,
+                               Instant effectiveFrom) {
+        SegmentReservation reservation = new SegmentReservation(this, segmentOrder, segment, altitude,
+                routeVersion, effectiveFrom);
         this.reservations.add(reservation);
     }
 
@@ -95,8 +119,24 @@ public class FlightClearance {
         return status;
     }
 
+    public int getVersion() {
+        return version;
+    }
+
+    public int getFlownLegs() {
+        return flownLegs;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public Instant getStartedAt() {
+        return startedAt;
+    }
+
+    public Instant getCompletedAt() {
+        return completedAt;
     }
 
     public Instant getCancelledAt() {
