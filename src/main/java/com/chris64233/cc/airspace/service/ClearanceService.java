@@ -286,6 +286,7 @@ public class ClearanceService {
                 .map(leg -> new RouteLegView(leg.getSegmentOrder(), leg.getSegment().getCode(), leg.getAltitude()))
                 .toList();
         return new RouteVersionView(routeVersion.getVersion(), routeVersion.getRerouteNo(),
+                routeVersion.getClosureEventNo(),
                 routeVersion.getFromLegIndex(), routeVersion.getEffectiveAt(),
                 routeVersion.getCreatedAt(), legs);
     }

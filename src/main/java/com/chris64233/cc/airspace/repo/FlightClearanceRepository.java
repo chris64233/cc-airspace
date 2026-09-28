@@ -1,6 +1,7 @@
 package com.chris64233.cc.airspace.repo;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 import jakarta.persistence.LockModeType;
@@ -36,6 +37,32 @@ public interface FlightClearanceRepository extends JpaRepository<FlightClearance
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from FlightClearance c where c.externalNo = :externalNo")
     Optional<FlightClearance> findByExternalNoForUpdate(@Param("externalNo") String externalNo);
+
+    /**
+     * 按主键升序对一批许可加写锁（关闭识别 / 范围重算时使用），
+     * 与单个许可变更事务保持同一加锁顺序，避免死锁。
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from FlightClearance c where c.id in :ids order by c.id")
+    List<FlightClearance> findAllByIdForUpdateOrderById(@Param("ids") List<Long> ids);
+
+    /**
+     * 关闭识别候选：在关闭时间窗内仍 ACTIVE、且航线占用了关闭区域任一航段的许可
+     *（含占用与航段明细）。可能返回重复行，由调用方按 id 去重并排序后加锁。
+     */
+    @Query("""
+            select distinct c from FlightClearance c
+            join fetch c.reservations r
+            join fetch r.segment s
+            where c.status = :active
+              and c.startTime < :endTime
+              and c.endTime > :startTime
+              and s.id in :segmentIds
+            """)
+    List<FlightClearance> findActiveCandidatesUsingSegments(@Param("active") ClearanceStatus active,
+                                                            @Param("startTime") Instant startTime,
+                                                            @Param("endTime") Instant endTime,
+                                                            @Param("segmentIds") List<Long> segmentIds);
 
     /**
      * 原子条件更新：只有当前状态仍为 ACTIVE 时才置为 CANCELLED。
