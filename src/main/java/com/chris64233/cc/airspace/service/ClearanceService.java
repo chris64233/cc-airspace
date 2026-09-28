@@ -227,6 +227,10 @@ public class ClearanceService {
         if (request.legs() == null || request.legs().isEmpty()) {
             throw new ParamInvalidException("改道航段列表不能为空");
         }
+        if (request.referencesClosure()
+                && (request.expectedClosureVersion() == null || request.expectedClosureVersion() < 1)) {
+            throw new ParamInvalidException("引用关闭事件的改道必须携带有效的关闭范围版本");
+        }
     }
 
     private boolean sameContent(FlightClearance clearance, SubmitClearanceRequest request) {
@@ -263,6 +267,16 @@ public class ClearanceService {
                 || !routeVersion.getEffectiveAt().equals(request.effectiveAt())) {
             return false;
         }
+        // 关闭事件引用必须一致：普通改道的 closureNo 为 null
+        boolean storedReferencesClosure = routeVersion.getClosureNo() != null;
+        if (storedReferencesClosure != request.referencesClosure()) {
+            return false;
+        }
+        if (storedReferencesClosure
+                && (!routeVersion.getClosureNo().equals(request.closureNo())
+                || !routeVersion.getClosureScopeVersion().equals(request.expectedClosureVersion()))) {
+            return false;
+        }
         List<RouteVersionLeg> storedLegs = routeVersion.getLegs();
         int from = routeVersion.getFromLegIndex();
         List<SubmitClearanceRequest.LegRequest> requestedLegs = request.legs();
@@ -286,6 +300,7 @@ public class ClearanceService {
                 .map(leg -> new RouteLegView(leg.getSegmentOrder(), leg.getSegment().getCode(), leg.getAltitude()))
                 .toList();
         return new RouteVersionView(routeVersion.getVersion(), routeVersion.getRerouteNo(),
+                routeVersion.getClosureNo(), routeVersion.getClosureScopeVersion(),
                 routeVersion.getFromLegIndex(), routeVersion.getEffectiveAt(),
                 routeVersion.getCreatedAt(), legs);
     }

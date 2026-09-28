@@ -6,6 +6,8 @@ import java.util.List;
 public record RouteVersionView(
         int version,
         String rerouteNo,
+        String closureNo,
+        Integer closureScopeVersion,
         int fromLegIndex,
         Instant effectiveAt,
         Instant createdAt,

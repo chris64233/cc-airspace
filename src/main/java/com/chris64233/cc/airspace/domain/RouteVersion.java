@@ -47,6 +47,18 @@ public class RouteVersion {
     @Column(name = "reroute_no", length = 64)
     private String rerouteNo;
 
+    /**
+     * 触发本次改道的关闭事件业务号；普通改道为 null。
+     */
+    @Column(name = "closure_no", length = 64)
+    private String closureNo;
+
+    /**
+     * 关闭驱动改道时引用的关闭范围版本；普通改道为 null。
+     */
+    @Column(name = "closure_scope_version")
+    private Integer closureScopeVersion;
+
     @Column(name = "from_leg_index", nullable = false)
     private int fromLegIndex;
 
@@ -65,9 +77,17 @@ public class RouteVersion {
 
     public RouteVersion(FlightClearance clearance, int version, String rerouteNo, int fromLegIndex,
                         Instant effectiveAt, Instant createdAt) {
+        this(clearance, version, rerouteNo, null, null, fromLegIndex, effectiveAt, createdAt);
+    }
+
+    public RouteVersion(FlightClearance clearance, int version, String rerouteNo, String closureNo,
+                        Integer closureScopeVersion, int fromLegIndex,
+                        Instant effectiveAt, Instant createdAt) {
         this.clearance = clearance;
         this.version = version;
         this.rerouteNo = rerouteNo;
+        this.closureNo = closureNo;
+        this.closureScopeVersion = closureScopeVersion;
         this.fromLegIndex = fromLegIndex;
         this.effectiveAt = effectiveAt;
         this.createdAt = createdAt;
@@ -91,6 +111,14 @@ public class RouteVersion {
 
     public String getRerouteNo() {
         return rerouteNo;
+    }
+
+    public String getClosureNo() {
+        return closureNo;
+    }
+
+    public Integer getClosureScopeVersion() {
+        return closureScopeVersion;
     }
 
     public int getFromLegIndex() {

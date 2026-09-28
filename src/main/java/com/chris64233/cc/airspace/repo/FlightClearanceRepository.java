@@ -1,6 +1,7 @@
 package com.chris64233.cc.airspace.repo;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 import jakarta.persistence.LockModeType;
@@ -28,6 +29,49 @@ public interface FlightClearanceRepository extends JpaRepository<FlightClearance
     Optional<FlightClearance> findDetailByExternalNo(@Param("externalNo") String externalNo);
 
     Optional<FlightClearance> findByExternalNo(String externalNo);
+
+    /**
+     * 许可时间窗标量投影（不把实体装入一级缓存），供事务在加锁前探测加锁集合。
+     */
+    interface ClearanceWindow {
+        Long getId();
+
+        Instant getStartTime();
+
+        Instant getEndTime();
+    }
+
+    @Query("""
+            select c.id as id, c.startTime as startTime, c.endTime as endTime
+            from FlightClearance c where c.externalNo = :externalNo
+            """)
+    Optional<ClearanceWindow> findWindowByExternalNo(@Param("externalNo") String externalNo);
+
+    @Query("select c.id from FlightClearance c where c.externalNo = :externalNo")
+    Optional<Long> findIdByExternalNo(@Param("externalNo") String externalNo);
+
+    /**
+     * 按主键升序批量加写锁，与航段锁、关闭事件锁遵循同一全局顺序，避免死锁。
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from FlightClearance c where c.id in :ids order by c.id")
+    List<FlightClearance> findAllByIdForUpdateOrderById(@Param("ids") List<Long> ids);
+
+    /**
+     * 扫描时间窗与 [startTime, endTime) 重叠、航线经过给定航段集合的有效许可，仅返回主键。
+     * 标量投影不污染一级缓存，创建 / 修订关闭事件时先取主键再加锁读取。
+     */
+    @Query("""
+            select distinct c.id from FlightClearance c
+            join c.reservations r
+            where c.status = com.chris64233.cc.airspace.domain.ClearanceStatus.ACTIVE
+              and r.segment.id in :segmentIds
+              and c.startTime < :endTime
+              and c.endTime > :startTime
+            """)
+    List<Long> findActiveIdsOnSegments(@Param("segmentIds") List<Long> segmentIds,
+                                       @Param("startTime") Instant startTime,
+                                       @Param("endTime") Instant endTime);
 
     /**
      * 对许可行加写锁：改道、飞行开始、位置上报等变更操作先取该锁，

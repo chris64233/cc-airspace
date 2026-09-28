@@ -17,6 +17,12 @@ public interface AirSegmentRepository extends JpaRepository<AirSegment, Long> {
     Optional<AirSegment> findByCode(String code);
 
     /**
+     * 按航段代码取主键（标量，不装入一级缓存），供事务在加锁前探测加锁集合。
+     */
+    @Query("select s.id from AirSegment s where s.code = :code")
+    Optional<Long> findIdByCode(@Param("code") String code);
+
+    /**
      * 按主键升序对航段加写锁并加锁读取，所有事务均以同一顺序加锁，避免死锁。
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)

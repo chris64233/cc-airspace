@@ -1,6 +1,7 @@
 package com.chris64233.cc.airspace.repo;
 
 import java.time.Instant;
+import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -9,6 +10,17 @@ import org.springframework.data.repository.query.Param;
 import com.chris64233.cc.airspace.domain.SegmentReservation;
 
 public interface SegmentReservationRepository extends JpaRepository<SegmentReservation, Long> {
+
+    /**
+     * 某许可当前航线占用的航段主键（标量投影，不污染一级缓存），
+     * 供改道 / 取消事务在持有许可锁之前探测需要加锁的航段集合。
+     */
+    @Query("""
+            select r.segment.id from SegmentReservation r
+            where r.clearance.id = :clearanceId
+            order by r.segmentOrder
+            """)
+    List<Long> findSegmentIdsByClearanceId(@Param("clearanceId") Long clearanceId);
 
     /**
      * 统计某航段在 [start, end) 时间区间内与其重叠的有效许可占用数量。
